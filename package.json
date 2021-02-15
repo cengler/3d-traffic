@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "3d-force-graph": "^1.67.8",
+    "axios": "^0.21.1",
     "core-js": "^3.6.5",
     "lodash": "^4.17.20",
     "three": "^0.125.2",

@@ -12,104 +12,110 @@ import * as UnrealBloomPass from 'three/examples/jsm/postprocessing/UnrealBloomP
 
 import _ from 'lodash'
 
-let links = [{"from":"internet","to":"home","value":0,"prom":0.0}, {"from":"home","to":"search","value":10,"prom":1000.0}]
 export default {
-  name: 'HelloWorld',
+  name: 'Traffic',
   props: {
-    msg: String
+    links: {
+      type: Array,
+      required: false,
+      default: () => []
+    },
   },
   data() {
     return {
-      nodes: null
+      forceGraph3D: null
     }
   },
   mounted() {
-    // Random tree
+    this.create()
+    this.updateData()
+  },
+  watch: {
+    links: {
+      immediate: false,
+      deep: false,
+      handler() {
+        this.updateData()
+      }
+    }
+  },
+  methods: {
+    create() {
+      this.forceGraph3D = ForceGraph3D();
+      this.forceGraph3D(document.getElementById("chartdiv"))
+          // layout nodos
+          .nodeThreeObject(node => {
+            let group = new THREE.Group();
+            let mesh = new THREE.Mesh(
+                new THREE.SphereGeometry(4),
+                new THREE.MeshLambertMaterial({
+                  color: node.color,
+                  transparent: true,
+                  opacity: 0.76
+                }))
+            group.add(mesh)
+            const sprite = new SpriteText(node.id);
+            sprite.material.depthWrite = false; // make sprite background transparent
+            sprite.textHeight = 4;
+            sprite.position.setY(-8);
+            group.add(sprite)
+            return group
+          })
+          // link color
+          .linkColor('color')
+          .linkDirectionalParticles("value")
+          .linkCurvature('curvature')
+          // layout links
+          .linkThreeObject(link => {
+            const sprite = new SpriteText(`${link.source} > ${link.target}\n ${link.value * 10}rpm ${link.prom / 1000}s`);
+            sprite.color = 'lightgrey';
+            sprite.textHeight = 1;
+            return sprite;
+          })
+          // position links
+          // eslint-disable-next-line no-unused-vars
+          .linkPositionUpdate((sprite, {start, end}, link) => {
+            Object.assign(sprite.position, link.__curve.getPoint(0.5));
+          })
+          .linkDirectionalArrowLength(3.5)
+          .linkDirectionalArrowRelPos(0)
+      //.linkDirectionalParticleSpeed(d => d.value * 0.0001)
 
-    //links = links.filter(l => l.value > 20)
-    const GROUPS = 12;
-    let nodes = links.map(i => ({
-      id: i.from,
-      color: Math.round(Math.random() * Math.pow(2, 24)),
-      group: Math.ceil(Math.random() * GROUPS) }))
-    nodes = nodes.concat(links.map(i => ({ id: i.to })))
-    nodes = _.uniqBy(nodes, 'id')
+      const bloomPass = new UnrealBloomPass.UnrealBloomPass()
+      bloomPass.strength = 1;
+      bloomPass.radius = 1;
+      bloomPass.threshold = 0.1;
+      //myGraph.postProcessingComposer().addPass(bloomPass);
+    },
+    updateData() {
 
-    console.log(nodes.map(i => i.id))
+      const GROUPS = 12;
+      let nodes = this.links.map(i => ({
+        id: i.from,
+        color: Math.round(Math.random() * Math.pow(2, 24)),
+        group: Math.ceil(Math.random() * GROUPS) }))
+      nodes = nodes.concat(this.links.map(i => ({ id: i.to })))
+      nodes = _.uniqBy(nodes, 'id')
 
-    const gData = {
-      nodes: nodes,
-      links: links
-          .filter(id => id)
-          .map(id => ({
-            source: id.from,
-            target: id.to,
-            curvature: 0.3,
-            value: id.value/10,
-            prom: id.prom,
-            color: nodes[_.findIndex(nodes, {id: id.from})].color
-          }))
-    };
+      console.log(nodes.map(i => i.id))
 
-    this.nodes = gData
-
-    const myGraph = ForceGraph3D();
-    myGraph(document.getElementById("chartdiv"))
-        .nodeThreeObject(node => {
-          let group = new THREE.Group();
-
-          let mesh = new THREE.Mesh(
-            new THREE.SphereGeometry(4),
-            new THREE.MeshLambertMaterial({
-              color: node.color,
-              transparent: true,
-              opacity: 0.76
+      const gData = {
+        nodes: nodes,
+        links: this.links
+            .filter(id => id)
+            .map(id => ({
+              source: id.from,
+              target: id.to,
+              curvature: 0.3,
+              value: id.value/10,
+              prom: id.prom,
+              color: nodes[_.findIndex(nodes, {id: id.from})].color
             }))
-
-          //mesh.position.set( 0, 0, 0 );
-          group.add(mesh)
-
-          const sprite = new SpriteText(node.id);
-          sprite.material.depthWrite = false; // make sprite background transparent
-          sprite.textHeight = 4;
-          sprite.position.setY(-8);
+      };
 
 
-          group.add(sprite)
-
-          return group
-
-        })
-        .linkColor('color')
-        .linkDirectionalParticles("value")
-        .linkCurvature('curvature')
-
-        .linkThreeObject(link => {
-          // extend link with text sprite
-          const sprite = new SpriteText(`${link.source} > ${link.target}\n ${link.value*10}rpm ${link.prom/1000}s`);
-          sprite.color = 'lightgrey';
-          sprite.textHeight = 1;
-          return sprite;
-        })
-        // eslint-disable-next-line no-unused-vars
-        .linkPositionUpdate((sprite, { start, end }, link) => {
-          Object.assign(sprite.position, link.__curve.getPoint(0.5));
-        })
-       .linkDirectionalArrowLength(3.5)
-        .linkDirectionalArrowRelPos(0)
-
-        //.linkDirectionalParticleSpeed(d => d.value * 0.0001)
-      .graphData(gData);
-
-        const bloomPass = new UnrealBloomPass.UnrealBloomPass()
-        bloomPass.strength = 1;
-        bloomPass.radius = 1;
-        bloomPass.threshold = 0.1;
-        //myGraph.postProcessingComposer().addPass(bloomPass);
-
-
-
-
+      this.forceGraph3D.graphData(gData);
+    }
   }
 }
 </script>
